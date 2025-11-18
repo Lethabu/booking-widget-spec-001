@@ -8,3 +8,6 @@ dist/
 # Logs and temporary files
 *.log
 *.tmp
+
+# Browser Cache
+.browser_data_dir/
