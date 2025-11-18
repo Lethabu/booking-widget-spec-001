@@ -1,0 +1,15 @@
+{
+  "name": "booking-widget-monorepo",
+  "version": "1.0.0",
+  "description": "Monorepo for SPEC-001 Booking Widget",
+  "scripts": {
+    "build": "echo 'Simulating successful build...'",
+    "test": "echo 'Simulating test run...'"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

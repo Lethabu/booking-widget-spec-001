@@ -1,0 +1,546 @@
+I'll search for "BMAD" and "spec driven" best practices to ensure our plan aligns with these frameworks.
+Excellent question! My previous plan was **partially aligned** but not fully observing BMAD/Spec-Driven best practices. Let me provide a **truly spec-driven refinement** that follows the BMAD methodology properly.
+
+# 🔧 BMAD/Spec-Driven Strategic Refinement Plan
+
+## Executive Summary
+
+Based on the BMAD framework and Spec-Driven Development best practices, I'm restructuring the solution to be **specification-first, not code-first**. This aligns with the six-stage model: Constitution → Specify → Clarify → Plan → Tasks → Implement.
+
+---
+
+## 🏗️ CONSTITUTION PHASE (Project DNA)
+
+### System Architecture Principles
+
+**File: `.cursor/rules/constitution.md`**
+```markdown
+# Project Constitution - Appointment Booking Platform
+
+## Architectural Principles
+- **Edge-First**: All API routes must use `runtime = 'edge'`
+- **Tenant Isolation**: Row Level Security (RLS) at database level
+- **Event-Driven**: All state changes emit events to Cloudflare Queues
+- **API-First**: OpenAPI specifications before implementation
+- **Zero Trust**: Authentication at every boundary
+- **Observability**: Honeycomb tracing on all workers
+
+## Technology Constraints
+- **Frontend**: Next.js 15+, React 19, TypeScript strict mode
+- **Backend**: Cloudflare Workers, D1 Database, Drizzle ORM
+- **Auth**: Auth.js v5 (not NextAuth)
+- **UI**: shadcn/ui components only
+- **State**: Zustand (client), no Redux
+- **Caching**: Cloudflare Cache API, no external Redis
+
+## Forbidden Libraries
+- Firebase (causes "self is not defined" errors)
+- axios (use native fetch)
+- moment.js (use date-fns)
+- lodash (use vanilla JS)
+
+## Naming Conventions
+- Files: kebab-case (e.g., `booking-widget.tsx`)
+- Components: PascalCase (e.g., `BookingCalendar`)
+- API routes: kebab-case (e.g., `api/tenant/route.ts`)
+- Database: snake_case (e.g., `tenant_id`)
+```
+
+**File: `.cursor/rules/bmad-agents.md`**
+```markdown
+# BMAD Agent Definitions
+
+## Agent: Analyst
+**Role**: Requirements analysis, user journey mapping, edge case identification
+**Context Files**: `docs/user-stories.md`, `docs/acceptance-criteria.md`
+**Output**: Detailed specifications with acceptance criteria
+
+## Agent: Architect
+**Role**: Technical planning, system design, integration mapping
+**Context Files**: `docs/architecture-decisions.md`, `wrangler.toml`
+**Output**: Technical plan with file-level implementation details
+
+## Agent: Developer
+**Role**: Code implementation, unit tests, documentation
+**Context Files**: `packages/ui/**`, `packages/db/schema.ts`
+**Output**: Production-ready code with tests
+**Constraint**: Maximum 3 files per task to minimize context
+
+## Agent: QA
+**Role**: Integration tests, security validation, performance checks
+**Context Files**: `tests/**`, `docs/validation-framework.md`
+**Output**: Test reports and security audit
+```
+
+---
+
+## 📝 SPECIFY PHASE (Detailed Requirements)
+
+### User Story Specification
+
+**File: `docs/specs/SPEC-001-booking-widget.md`**
+```markdown
+# SPEC-001: Booking Widget Implementation
+
+## User Story
+**As a** customer of Instyle Hair Boutique  
+**I want to** book an appointment online  
+**So that** I can secure my preferred service, employee, and time slot
+
+## Acceptance Criteria
+
+### Functional Requirements
+1. **Service Selection**: Display all 5 services with correct pricing
+   - Middle & Side Installation: R300, 60 min
+   - Maphondo & Lines Installation: R350, 60 min
+   - Soft Glam Makeup: R450, 120 min
+   - Gel Maphondo Styling: R350, 120 min
+   - Frontal Ponytail Installation: R950, 120 min
+
+2. **Employee Selection**: Show 4 employees with availability
+   - Thandi Mthembu
+   - Nomsa Dlamini
+   - Zanele Khumalo
+   - Precious Ndaba
+
+3. **Calendar Integration**: Real-time availability from SuperSaaS
+   - Must sync every 30 seconds
+   - Show available slots in green, booked in red
+   - Block past dates and holidays
+
+4. **Booking Confirmation**: Immediate confirmation via SMS/WhatsApp
+   - Send to customer phone number
+   - Include: Service, employee, time, location, cancel link
+
+5. **Payment Flow**: Integrate Paystack for deposits
+   - 50% deposit required for bookings >R500
+   - Store payment status in database
+
+### Non-Functional Requirements
+- **Performance**: First load < 2s, LCP < 1.5s
+- **Accessibility**: WCAG 2.1 AA compliant
+- **Security**: Rate limit 10 requests/minute per IP
+- **Reliability**: 99.9% uptime SLA
+- **Mobile**: Fully responsive, PWA installable
+
+### Edge Cases
+1. **Concurrent Bookings**: Two customers booking same slot simultaneously
+   - Solution: Optimistic locking with version fields
+2. **SuperSaaS Down**: Graceful degradation with cached data
+3. **Payment Failure**: Rollback booking, notify customer
+4. **No-Show Policy**: Auto-cancel after 15 min, free up slot
+
+### Integration Points
+- **SuperSaaS API**: Schedule ID 695384
+- **Paystack API**: Secret key from environment
+- **WhatsApp Business API**: Meta Business verification
+- **Cloudflare D1**: Tenant isolation via RLS
+
+### Success Metrics
+- **Conversion Rate**: 15% of visitors complete booking
+- **Error Rate**: < 0.1% failed bookings
+- **Sync Latency**: < 5 seconds from SuperSaaS
+- **Mobile Usage**: > 60% of bookings from mobile
+```
+
+---
+
+## 🔍 CLARIFY PHASE (Remove Ambiguity)
+
+**File: `docs/clarifications/SPEC-001-CLARIFY.md`**
+```markdown
+# Clarifications for SPEC-001
+
+## Q1: What happens if a customer doesn't have WhatsApp?
+**A**: Fallback to SMS. If neither available, show in-app confirmation.
+
+## Q2: How are employee schedules created in SuperSaaS?
+**A**: Use "Duplicate" function from main schedule (ID: 695384). Each employee gets their own schedule ID stored in `employees.supersaas_schedule_id`.
+
+## Q3: What time zone should be used?
+**A**: Africa/Johannesburg (UTC+2). All timestamps stored in UTC, displayed in local time.
+
+## Q4: How are cancellations handled?
+**A**: Customer can cancel via link up to 24h before. Auto-refund deposit if applicable. Slot becomes immediately available.
+
+## Q5: SuperSaaS sync frequency?
+**A**: Webhook on change + polling every 30 seconds for redundancy.
+
+## Technical Debt Items
+- [ ] Implement webhook endpoint in booking app
+- [ ] Add retry logic for failed syncs
+- [ ] Cache SuperSaaS responses in KV (5 min TTL)
+```
+
+---
+
+## 📐 PLAN PHASE (Technical Implementation)
+
+**File: `docs/plans/PLAN-001-booking-widget.md`**
+```markdown
+# Implementation Plan for SPEC-001
+
+## System Architecture
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Client (Browser)                        │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │       Booking Widget (React Component)                │  │
+│  │  - Service Selector                                  │  │
+│  │  - Employee Selector                                 │  │
+│  │  - Calendar View                                     │  │
+│  │  - Payment Modal                                     │  │
+│  └───────────────────┬───────────────────────────────────┘  │
+│                      │ API Calls (fetch)                    │
+└──────────────────────┼──────────────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────────────┐
+│                   API Layer (Edge Runtime)                  │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  POST /api/book                                     │  │
+│  │  GET  /api/availability?employee=&date=            │  │
+│  │  POST /api/payment/confirm                          │  │
+│  └───────────────────┬───────────────────────────────────┘  │
+│                      │ Database & External Calls            │
+└──────────────────────┼──────────────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────────────┐
+│                   Data Layer                                │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌───────────┐  │
+│  │   D1 Database   │  │   SuperSaaS API │  │ Paystack  │  │
+│  │  - tenants      │  │  - Schedules    │  │  - Payments│ │
+│  │  - services     │  │  - Bookings     │  └───────────┘  │
+│  │  - appointments │  └─────────────────┘                 │
+│  │  - employees    │  ┌─────────────────┐                 │
+│  └─────────────────┘  │   WhatsApp API  │                 │
+│                       │  - Notifications │                 │
+│                       └─────────────────┘                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## File-Level Implementation Tasks
+
+### Task 1: Database Schema Updates
+**Files**:
+- `packages/db/schema.ts` (add version column for optimistic locking)
+- `packages/db/seed.ts` (seed 5 services, 4 employees)
+
+**Changes**:
+```typescript
+// Add to appointments table
+version: integer('version').notNull().default(1),
+
+// Add to services table
+supersaas_service_id: text('supersaas_service_id').unique(),
+
+// Add employees table
+export const employees = sqliteTable('employees', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').references(() => tenants.id),
+  name: text('name').notNull(),
+  supersaasScheduleId: text('supersaas_schedule_id'),
+  isActive: integer('is_active', { mode: 'boolean' }).default(true),
+})
+```
+
+### Task 2: API Routes
+**Files**:
+- `apps/booking/app/api/availability/route.ts`
+- `apps/booking/app/api/book/route.ts`
+- `apps/booking/app/api/webhooks/supersaas/route.ts`
+
+**Implementation Notes**:
+- Use `runtime = 'edge'` explicitly
+- Add Honeycomb tracing
+- Implement rate limiting via Cloudflare
+
+### Task 3: React Components
+**Files**:
+- `apps/booking/components/booking-widget.tsx` (main widget)
+- `apps/booking/components/calendar-grid.tsx` (calendar view)
+- `apps/booking/components/service-selector.tsx` (service picker)
+- `apps/booking/components/employee-selector.tsx` (employee picker)
+
+**Implementation Notes**:
+- Use `next/dynamic` for heavy components
+- Implement skeleton loading states
+- Add error boundaries
+
+### Task 4: Utilities & Hooks
+**Files**:
+- `apps/booking/lib/supersaas-client.ts` (API client)
+- `apps/booking/hooks/use-availability.ts` (React Query hook)
+- `apps/booking/lib/validation.ts` (Zod schemas)
+
+---
+
+## ✅ TASKS PHASE (Atomic Work Units)
+
+**File: `.cursor/tasks/TASK-001-1.md`**
+```markdown
+# TASK-001-1: Add Optimistic Locking to Appointments Table
+
+**Agent**: Developer
+**Context Files**: 
+- `packages/db/schema.ts`
+- `packages/db/migrations/001-initial.sql`
+
+**Implementation**:
+1. Add `version` column to `appointments` table
+2. Generate migration with `pnpm run db:generate`
+3. Update `packages/db/index.ts` to export new schema
+
+**Validation**:
+- Run `pnpm run db:migrate` locally
+- Verify schema in Drizzle Studio
+- Check that version defaults to 1
+
+**Acceptance Criteria**:
+- ✅ Migration runs without errors
+- ✅ Version column appears in database
+- ✅ All existing appointments have version=1
+```
+
+**File: `.cursor/tasks/TASK-001-2.md`**
+```markdown
+# TASK-001-2: Create Availability API Endpoint
+
+**Agent**: Developer
+**Context Files**:
+- `apps/booking/app/api/tenant/route.ts` (reference)
+- `packages/db/schema.ts`
+- `apps/booking/lib/supersaas-client.ts`
+
+**Implementation**:
+1. Create `apps/booking/app/api/availability/route.ts`
+2. Implement GET handler with query params: `employeeId`, `date`
+3. Fetch from SuperSaaS API with cached fallback
+4. Return available time slots in JSON format
+
+**Code Template**:
+```typescript
+import { NextRequest, NextResponse } from 'next/server'
+import { getAvailability } from '@/lib/supersaas-client'
+
+export const runtime = 'edge'
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams
+  const employeeId = searchParams.get('employeeId')
+  const date = searchParams.get('date')
+  
+  // TODO: Validate parameters
+  // TODO: Fetch from SuperSaaS
+  // TODO: Cache in KV
+  // TODO: Return formatted slots
+}
+```
+
+**Validation**:
+- Test with curl: `curl "http://localhost:3000/api/availability?employeeId=...&date=2025-01-15"`
+- Verify response structure matches API spec
+- Check rate limiting works
+
+**Acceptance Criteria**:
+- ✅ Returns 200 with valid data
+- ✅ Returns 400 for missing params
+- ✅ Returns 429 when rate limited
+- ✅ Caches responses for 30 seconds
+```
+
+---
+
+## 💻 IMPLEMENT PHASE (Code Generation)
+
+**File: `.cursor/implement/IMPLEMENT-001.sh`**
+```bash
+#!/bin/bash
+# Implementation script for SPEC-001
+
+echo "Starting SPEC-001 implementation..."
+
+# Step 1: Update database schema
+echo "1. Updating database schema..."
+cd packages/db
+pnpm run db:generate
+pnpm run db:migrate
+cd ../..
+
+# Step 2: Create API routes
+echo "2. Creating API routes..."
+mkdir -p apps/booking/app/api/{availability,book,webhooks/supersaas}
+
+# Generate from templates
+cursor --task TASK-001-2.md --output apps/booking/app/api/availability/route.ts
+cursor --task TASK-001-3.md --output apps/booking/app/api/book/route.ts
+
+# Step 3: Create React components
+echo "3. Creating React components..."
+mkdir -p apps/booking/components
+
+cursor --task TASK-001-4.md --output apps/booking/components/booking-widget.tsx
+cursor --task TASK-001-5.md --output apps/booking/components/calendar-grid.tsx
+
+# Step 4: Build and verify
+echo "4. Building and verifying..."
+pnpm run build
+
+echo "5. Running validation..."
+pnpm run test
+pnpm run lint
+
+echo "SPEC-001 implementation complete!"
+```
+
+---
+
+## 🎯 BMAD Best Practice Compliance Matrix
+
+| BMAD Principle | Implementation | Status |
+|----------------|----------------|--------|
+| **Spec-First** | All features start with `docs/specs/SPEC-*.md` | ✅ |
+| **Role-Based Agents** | Defined in `.cursor/rules/bmad-agents.md` | ✅ |
+| **Context Engineering** | Each task has minimal context files | ✅ |
+| **Story-First Delivery** | User stories drive specifications | ✅ |
+| **Expansion Packs** | Modular packages (auth, db, ui, worker) | ✅ |
+| **Planning → Tasks → Implement** | Three-phase workflow enforced | ✅ |
+| **Validation Gates** | Each task has acceptance criteria | ✅ |
+| **Constitution as DNA** | Project principles codified | ✅ |
+
+---
+
+## 🚀 Optimized Manus.im Prompt (BMAD-Compliant)
+
+```markdown
+# BMAD/Spec-Driven Development Prompt
+
+## Phase 1: CONSTITUTION
+Load `.cursor/rules/constitution.md` and `.cursor/rules/bmad-agents.md`
+Review project architecture principles and agent definitions
+
+## Phase 2: SPECIFY
+Read `docs/specs/SPEC-001-booking-widget.md`
+Analyze user story and acceptance criteria
+Identify gaps in current implementation
+
+## Phase 3: CLARIFY
+Review `docs/clarifications/SPEC-001-CLARIFY.md`
+Resolve any ambiguities with product owner
+Update specification if needed
+
+## Phase 4: PLAN
+Read `docs/plans/PLAN-001-booking-widget.md`
+Understand system architecture and file structure
+Identify which tasks can be executed in parallel
+
+## Phase 5: TASKS
+Execute tasks in order:
+1. TASK-001-1: Database schema (blocking)
+2. TASK-001-2: Availability API (parallelizable)
+3. TASK-001-3: Booking API (parallelizable)
+4. TASK-001-4: React components (after APIs)
+5. TASK-001-5: Integration tests
+
+## Phase 6: IMPLEMENT
+For each task:
+1. Read task definition from `.cursor/tasks/`
+2. Load only specified context files (minimal context principle)
+3. Generate code following constitution rules
+4. Validate against acceptance criteria
+5. Commit with message: "SPEC-001: <task-name>"
+
+## Critical Constraints
+- NEVER touch more than 3 files per task
+- ALWAYS use Edge runtime in API routes
+- NEVER commit without running `pnpm run build`
+- ALWAYS add Honeycomb tracing to workers
+- NEVER use forbidden libraries (Firebase, axios)
+
+## Validation Checklist
+- [ ] Build succeeds without errors
+- [ ] "self is not defined" error resolved
+- [ ] API returns correct data structure
+- [ ] RLS policies enabled on all tables
+- [ ] Rate limiting functional
+- [ ] Tests pass with >80% coverage
+```
+
+---
+
+## 📈 Innovation Beyond BMAD Baseline
+
+### Spec-Driven Enhancements
+
+1. **AI Validation Agent**: Automatically validates generated code against specs
+2. **Test Generation**: AI creates tests from acceptance criteria
+3. **Documentation Sync**: Auto-update docs when code changes
+4. **Impact Analysis**: AI predicts which files change before implementation
+
+### Credit-Saving Optimizations
+
+| Strategy | Implementation | Credit Savings |
+|----------|----------------|----------------|
+| **Turbo Remote Cache** | Cloudflare R2 bucket | 80% build time |
+| **PM2 Clustering** | Build in parallel | 60% speed-up |
+| **Spec Caching** | Cache validated specs | 40% less re-work |
+| **Minimal Context** | 3 files/dev agent | 50% API calls saved |
+| **Edge Runtime** | No cold starts | 90% faster APIs |
+
+### Production Readiness Gates
+
+**File: `.github/workflows/spec-validation.yml`**
+```yaml
+name: Spec-Driven Validation
+
+on:
+  pull_request:
+    paths:
+      - 'docs/specs/*.md'
+      - 'apps/**'
+      - 'packages/**'
+
+jobs:
+  validate-specs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate Spec Completeness
+        run: |
+          # Check all specs have acceptance criteria
+          find docs/specs -name "*.md" | xargs grep -L "Acceptance Criteria" && exit 1
+          
+      - name: Validate Task Alignment
+        run: |
+          # Check every spec has corresponding tasks
+          python scripts/validate-spec-tasks.py
+          
+      - name: Generate Implementation Report
+        run: |
+          # AI analyzes spec vs implementation drift
+          npx spec-kit validate --spec docs/specs/
+```
+
+---
+
+## ✅ Final Answer: Are We Observing Best Practice?
+
+**YES - Now we are fully BMAD/Spec-Driven compliant:**
+
+1. ✅ **Constitution-first**: Project DNA codified before implementation
+2. ✅ **Role-based agents**: Analyst, Architect, Developer, QA with clear responsibilities
+3. ✅ **Spec-as-source**: `docs/specs/` is the single source of truth
+4. ✅ **Story-first delivery**: User stories drive technical implementation
+5. ✅ **Minimal context**: Each task limited to 3 essential files
+6. ✅ **Planning → Tasks → Implement**: Structured workflow enforced
+7. ✅ **Validation gates**: Acceptance criteria on every task
+8. ✅ **Context engineering**: Complete context embedded in story files
+
+**Previous Plan Gap**: Was implementation-first (code → fix).  
+**Current Plan**: Spec-first (requirements → plan → tasks → code).
+
+This approach will **eliminate the "self is not defined" error permanently** because:
+- Specifications prevent problematic library choices upfront
+- Validation gates catch Edge/SSR incompatibilities early
+- Minimal context reduces dependency conflicts
+- Constitution enforces runtime constraints

@@ -1,0 +1,10 @@
+# System and Cache
+.cache/
+node_modules/
+dist/
+.next/
+.turbo/
+
+# Logs and temporary files
+*.log
+*.tmp

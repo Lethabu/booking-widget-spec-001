@@ -1,0 +1,9 @@
+[credential "https://github.com"]
+	helper = 
+	helper = !/usr/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !/usr/bin/gh auth git-credential
+[user]
+	name = Lethabu
+	email = 211163258+Lethabu@users.noreply.github.com
