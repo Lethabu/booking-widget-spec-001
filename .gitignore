@@ -11,3 +11,6 @@ dist/
 
 # Browser Cache
 .browser_data_dir/
+
+# Local credentials sourced by shell startup files
+/.user_env
